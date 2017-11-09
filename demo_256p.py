@@ -56,14 +56,14 @@ def recursive_generator(label,sp):
         input=label
     else:
         downsampled=tf.image.resize_area(label,(sp//2,sp),align_corners=False)
-        input=tf.concat([tf.image.resize_bilinear(recursive_generator(downsampled,sp//2),(sp,sp*2),align_corners=True),label],3)
+        input=tf.concat(3,[tf.image.resize_bilinear(recursive_generator(downsampled,sp//2),(sp,sp*2),align_corners=True),label])
     net=slim.conv2d(input,dim,[3,3],rate=1,normalizer_fn=slim.layer_norm,activation_fn=lrelu,scope='g_'+str(sp)+'_conv1')
     net=slim.conv2d(net,dim,[3,3],rate=1,normalizer_fn=slim.layer_norm,activation_fn=lrelu,scope='g_'+str(sp)+'_conv2')
     if sp==256:
         net=slim.conv2d(net,27,[1,1],rate=1,activation_fn=None,scope='g_'+str(sp)+'_conv100')
         net=(net+1.0)/2.0*255.0
-        split0,split1,split2=tf.split(tf.transpose(net,perm=[3,1,2,0]),num_or_size_splits=3,axis=0)
-        net=tf.concat([split0,split1,split2],3)
+        split0,split1,split2=tf.split(0,3,tf.transpose(net,perm=[3,1,2,0]))
+        net=tf.concat(3,[split0,split1,split2])
     return net
 
 def compute_error(real,fake,label):
