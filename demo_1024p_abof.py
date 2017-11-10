@@ -51,14 +51,16 @@ def recursive_generator(label,sp):
     dim=512 if sp>=128 else 1024
     if sp==512:
         dim=128
+    if sp==1024:
+        dim=32
     if sp==4:
         input=label
     else:
-        downsampled=tf.image.resize_area(label,(sp//2,sp//2),align_corners=False)
-        input=tf.concat(3,[tf.image.resize_bilinear(recursive_generator(downsampled,sp//2),(sp,sp),align_corners=True),label])
+        downsampled=tf.image.resize_area(label,(sp//2,sp),align_corners=False)
+        input=tf.concat(3,[tf.image.resize_bilinear(recursive_generator(downsampled,sp//2),(sp,sp*2),align_corners=True),label])
     net=slim.conv2d(input,dim,[3,3],rate=1,normalizer_fn=slim.layer_norm,activation_fn=lrelu,scope='g_'+str(sp)+'_conv1')
     net=slim.conv2d(net,dim,[3,3],rate=1,normalizer_fn=slim.layer_norm,activation_fn=lrelu,scope='g_'+str(sp)+'_conv2')
-    if sp==512:
+    if sp==1024:
         net=slim.conv2d(net,3,[1,1],rate=1,activation_fn=None,scope='g_'+str(sp)+'_conv100')
         net=(net+1.0)/2.0*255.0
     return net
@@ -71,9 +73,9 @@ def compute_error(real,fake,label):
 #os.environ['CUDA_VISIBLE_DEVICES']=str(np.argmax([int(x.split()[2]) for x in open('tmp','r').readlines()]))#select a GPU with maximum available memory
 #os.system('rm tmp')
 sess=tf.Session()
-is_training=True
+is_training = True
 n_classes = 11
-sp=512#spatial resolution: 512x512
+sp=1024#spatial resolution: 1024x1024
 with tf.variable_scope(tf.get_variable_scope()):
     label=tf.placeholder(tf.float32,[None,None,None,n_classes + 1])
     real_image=tf.placeholder(tf.float32,[None,None,None,3])
@@ -84,17 +86,17 @@ with tf.variable_scope(tf.get_variable_scope()):
     vgg_fake=build_vgg19(generator,reuse=True)
     p0=compute_error(vgg_real['input'],vgg_fake['input'],label)
     p1=compute_error(vgg_real['conv1_2'],vgg_fake['conv1_2'],label)/2.6
-    p2=compute_error(vgg_real['conv2_2'],vgg_fake['conv2_2'],tf.image.resize_area(label,(sp//2,sp//2)))/4.8
-    p3=compute_error(vgg_real['conv3_2'],vgg_fake['conv3_2'],tf.image.resize_area(label,(sp//4,sp//4)))/3.7
-    p4=compute_error(vgg_real['conv4_2'],vgg_fake['conv4_2'],tf.image.resize_area(label,(sp//8,sp//8)))/5.6
-    p5=compute_error(vgg_real['conv5_2'],vgg_fake['conv5_2'],tf.image.resize_area(label,(sp//16,sp//16)))*10/1.5
+    p2=compute_error(vgg_real['conv2_2'],vgg_fake['conv2_2'],tf.image.resize_area(label,(sp//2,sp)))/4.8
+    p3=compute_error(vgg_real['conv3_2'],vgg_fake['conv3_2'],tf.image.resize_area(label,(sp//4,sp//2)))/3.7
+    p4=compute_error(vgg_real['conv4_2'],vgg_fake['conv4_2'],tf.image.resize_area(label,(sp//8,sp//4)))/5.6
+    p5=compute_error(vgg_real['conv5_2'],vgg_fake['conv5_2'],tf.image.resize_area(label,(sp//16,sp//8)))*10/1.5
     G_loss=p0+p1+p2+p3+p4+p5
 lr=tf.placeholder(tf.float32)
-G_opt=tf.train.AdamOptimizer(learning_rate=lr).minimize(G_loss,var_list=[var for var in tf.trainable_variables()])
+G_opt=tf.train.AdamOptimizer(learning_rate=lr).minimize(G_loss,var_list=[var for var in tf.trainable_variables() if var.name.startswith('g_1024') or var.name.startswith('g_512')])#only fine-tune the last two refinement module due to memory limitation
 sess.run(tf.global_variables_initializer())
 
-pretrained_checkpoint_name = "result_256p_abof"
-checkpoint_name = "result_512p_abof"
+pretrained_checkpoint_name = "result_512p_abof"
+checkpoint_name = "result_1024p_abof"
 
 ckpt=tf.train.get_checkpoint_state(checkpoint_name)
 if ckpt:
@@ -103,14 +105,14 @@ if ckpt:
     saver.restore(sess,ckpt.model_checkpoint_path)
 else:
     ckpt_prev=tf.train.get_checkpoint_state(pretrained_checkpoint_name)
-    saver=tf.train.Saver(var_list=[var for var in tf.trainable_variables() if var.name.startswith('g_') and not var.name.startswith('g_512')])
+    saver=tf.train.Saver(var_list=[var for var in tf.trainable_variables() if var.name.startswith('g_') and not var.name.startswith('g_1024')])
     print('loaded '+ckpt_prev.model_checkpoint_path)
     saver.restore(sess,ckpt_prev.model_checkpoint_path)
 saver=tf.train.Saver(max_to_keep=1000)
 
 # Read all existing image files in the folder
-dir_label = "data/abof512x512/label"
-dir_image = "data/abof512x512/image"
+dir_label = "data/abof1024x1024/label"
+dir_image = "data/abof1024x1024/image"
 file_list = []
 for f in os.listdir(dir_label):
   if f.endswith(".png"):
@@ -125,7 +127,7 @@ if is_training:
     g_loss=np.zeros(training_count,dtype=float)
     input_images=[None]*training_count
     label_images=[None]*training_count
-    for epoch in range(1,21):
+    for epoch in range(1,6):
         if os.path.isdir(os.path.join(checkpoint_name, "%04d" % epoch)):
             continue
         cnt=0
@@ -157,7 +159,7 @@ if is_training:
 
 if not os.path.isdir(os.path.join(checkpoint_name, "final")):
     os.makedirs(os.path.join(checkpoint_name, "final"))
-    
+
 for i in range(testing_count):
     file_name = file_list[training_count + i]
     if not os.path.isfile(os.path.join(dir_label, file_name)):#test label

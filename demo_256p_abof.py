@@ -96,7 +96,10 @@ lr=tf.placeholder(tf.float32)
 G_opt=tf.train.AdamOptimizer(learning_rate=lr).minimize(G_loss,var_list=[var for var in tf.trainable_variables() if var.name.startswith('g_')])
 saver=tf.train.Saver(max_to_keep=1000)
 sess.run(tf.global_variables_initializer())
-ckpt=tf.train.get_checkpoint_state("result_256p_abof")
+
+checkpoint_name = "result_256p_abof"
+
+ckpt=tf.train.get_checkpoint_state(checkpoint_name)
 if ckpt:
     print('loaded '+ckpt.model_checkpoint_path)
     saver.restore(sess,ckpt.model_checkpoint_path)
@@ -119,48 +122,50 @@ if is_training:
     input_images=[None]*training_count
     label_images=[None]*training_count
     for epoch in range(1,201):
-        if os.path.isdir("result_256p_abof/%04d"%epoch):
+        if os.path.isdir(os.path.join(checkpoint_name, "%04d" % epoch)):
             continue
         cnt=0
         for i in np.random.permutation(training_count):
-            ind = file_list[i]
+            file_name = file_list[i]
             st=time.time()
             cnt+=1
             if input_images[i] is None:
-                label_images[i]=helper.get_index_semantic_map(os.path.join(dir_label, ind), n_classes)#training label
-                input_images[i]=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_image, ind.replace('.png','.jpg')))),axis=0)#training image
+                label_images[i]=helper.get_index_semantic_map(os.path.join(dir_label, file_name), n_classes)#training label
+                input_images[i]=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_image, file_name.replace('.png','.jpg')))),axis=0)#training image
             _,G_current,l0,l1,l2,l3,l4,l5=sess.run([G_opt,G_loss,p0,p1,p2,p3,p4,p5],feed_dict={label:np.concatenate((label_images[i],np.expand_dims(1-np.sum(label_images[i],axis=3),axis=3)),axis=3),real_image:input_images[i],lr:1e-4})#may try lr:min(1e-6*np.power(1.1,epoch-1),1e-4 if epoch>100 else 1e-3) in case lr:1e-4 is not good
             g_loss[i]=G_current
             print("%d %d %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f"%(epoch,cnt,np.mean(g_loss[np.where(g_loss)]),np.mean(l0),np.mean(l1),np.mean(l2),np.mean(l3),np.mean(l4),np.mean(l5),time.time()-st))
-        os.makedirs("result_256p_abof/%04d"%epoch)
-        target=open("result_256p_abof/%04d/score.txt"%epoch,'w')
+        os.makedirs(os.path.join(checkpoint_name, "%04d" % epoch))
+        target=open(os.path.join(checkpoint_name, "%04d/score.txt" % epoch),'w')
         target.write("%f"%np.mean(g_loss[np.where(g_loss)]))
         target.close()
-        saver.save(sess,"result_256p_abof/model.ckpt")
+        saver.save(sess, os.path.join(checkpoint_name, "model.ckpt"))
         if epoch%20==0:
-            saver.save(sess,"result_256p_abof/%04d/model.ckpt"%epoch)
+            saver.save(sess, os.path.join(checkpoint_name, "model.ckpt" % epoch))
+
         for i in range(testing_count):
-            ind = file_list[training_count + i]
-            if not os.path.isfile(os.path.join(dir_label, ind)):#test label
+            file_name = file_list[training_count + i]
+            if not os.path.isfile(os.path.join(dir_label, file_name)):#test label
                 continue
-            semantic=helper.get_index_semantic_map(os.path.join(dir_label, ind), n_classes)#test label
+            semantic=helper.get_index_semantic_map(os.path.join(dir_label, file_name), n_classes)#test label
             output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3)})
             output=np.minimum(np.maximum(output,0.0),255.0)
             upper=np.concatenate((output[0,:,:,:],output[1,:,:,:],output[2,:,:,:]),axis=1)
             middle=np.concatenate((output[3,:,:,:],output[4,:,:,:],output[5,:,:,:]),axis=1)
             bottom=np.concatenate((output[6,:,:,:],output[7,:,:,:],output[8,:,:,:]),axis=1)
-            scipy.misc.toimage(np.concatenate((upper,middle,bottom),axis=0),cmin=0,cmax=255).save("result_256p_abof/%04d/%s_output.jpg"%(epoch,ind))
+            scipy.misc.toimage(np.concatenate((upper,middle,bottom),axis=0),cmin=0,cmax=255).save(os.path.join(checkpoint_name, "%04d/%s_output.jpg"%(epoch,file_name)))
 
-if not os.path.isdir("result_256p_abof/final"):
-    os.makedirs("result_256p_abof/final")
+if not os.path.isdir(os.path.join(checkpoint_name, "final")):
+    os.makedirs(os.path.join(checkpoint_name, "final"))
+    
 for i in range(testing_count):
-    ind = file_list[training_count + i]
-    if not os.path.isfile(os.path.join(dir_label, ind)):#test label
+    file_name = file_list[training_count + i]
+    if not os.path.isfile(os.path.join(dir_label, file_name)):#test label
         continue
-    semantic=helper.get_index_semantic_map(os.path.join(dir_label, ind), n_classes)#test label
+    semantic=helper.get_index_semantic_map(os.path.join(dir_label, file_name), n_classes)#test label
     output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3)})
     output=np.minimum(np.maximum(output, 0.0), 255.0)
     upper=np.concatenate((output[0,:,:,:],output[1,:,:,:],output[2,:,:,:]),axis=1)
     middle=np.concatenate((output[3,:,:,:],output[4,:,:,:],output[5,:,:,:]),axis=1)
     bottom=np.concatenate((output[6,:,:,:],output[7,:,:,:],output[8,:,:,:]),axis=1)
-    scipy.misc.toimage(np.concatenate((upper,middle,bottom),axis=0),cmin=0,cmax=255).save("result_256p_abof/final/%s_output.jpg"%ind)
+    scipy.misc.toimage(np.concatenate((upper,middle,bottom),axis=0),cmin=0,cmax=255).save(os.path.join(checkpoint_name, "final/%s_output.jpg" % file_name))
