@@ -56,8 +56,8 @@ def recursive_generator(label,sp):
     if sp==4:
         input=label
     else:
-        downsampled=tf.image.resize_area(label,(sp//2,sp),align_corners=False)
-        input=tf.concat(3,[tf.image.resize_bilinear(recursive_generator(downsampled,sp//2),(sp,sp*2),align_corners=True),label])
+        downsampled=tf.image.resize_area(label,(sp//2,sp//2),align_corners=False)
+        input=tf.concat(3,[tf.image.resize_bilinear(recursive_generator(downsampled,sp//2),(sp,sp),align_corners=True),label])
     net=slim.conv2d(input,dim,[3,3],rate=1,normalizer_fn=slim.layer_norm,activation_fn=lrelu,scope='g_'+str(sp)+'_conv1')
     net=slim.conv2d(net,dim,[3,3],rate=1,normalizer_fn=slim.layer_norm,activation_fn=lrelu,scope='g_'+str(sp)+'_conv2')
     if sp==1024:
@@ -86,10 +86,10 @@ with tf.variable_scope(tf.get_variable_scope()):
     vgg_fake=build_vgg19(generator,reuse=True)
     p0=compute_error(vgg_real['input'],vgg_fake['input'],label)
     p1=compute_error(vgg_real['conv1_2'],vgg_fake['conv1_2'],label)/2.6
-    p2=compute_error(vgg_real['conv2_2'],vgg_fake['conv2_2'],tf.image.resize_area(label,(sp//2,sp)))/4.8
-    p3=compute_error(vgg_real['conv3_2'],vgg_fake['conv3_2'],tf.image.resize_area(label,(sp//4,sp//2)))/3.7
-    p4=compute_error(vgg_real['conv4_2'],vgg_fake['conv4_2'],tf.image.resize_area(label,(sp//8,sp//4)))/5.6
-    p5=compute_error(vgg_real['conv5_2'],vgg_fake['conv5_2'],tf.image.resize_area(label,(sp//16,sp//8)))*10/1.5
+    p2=compute_error(vgg_real['conv2_2'],vgg_fake['conv2_2'],tf.image.resize_area(label,(sp//2,sp//2)))/4.8
+    p3=compute_error(vgg_real['conv3_2'],vgg_fake['conv3_2'],tf.image.resize_area(label,(sp//4,sp//4)))/3.7
+    p4=compute_error(vgg_real['conv4_2'],vgg_fake['conv4_2'],tf.image.resize_area(label,(sp//8,sp//8)))/5.6
+    p5=compute_error(vgg_real['conv5_2'],vgg_fake['conv5_2'],tf.image.resize_area(label,(sp//16,sp//16)))*10/1.5
     G_loss=p0+p1+p2+p3+p4+p5
 lr=tf.placeholder(tf.float32)
 G_opt=tf.train.AdamOptimizer(learning_rate=lr).minimize(G_loss,var_list=[var for var in tf.trainable_variables() if var.name.startswith('g_1024') or var.name.startswith('g_512')])#only fine-tune the last two refinement module due to memory limitation

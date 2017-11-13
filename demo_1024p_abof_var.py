@@ -64,7 +64,7 @@ def recursive_generator(label,sp):
     net=slim.conv2d(input,dim,[3,3],rate=1,normalizer_fn=slim.layer_norm,activation_fn=lrelu,scope='g_'+str(sp)+'_conv1')
     net=slim.conv2d(net,dim,[3,3],rate=1,normalizer_fn=slim.layer_norm,activation_fn=lrelu,scope='g_'+str(sp)+'_conv2')
     if sp==1024:
-        net=slim.conv2d(net,3,[1,1],rate=1,activation_fn=None,scope='g_'+str(sp)+'_conv100')
+        net=slim.conv2d(net,18,[1,1],rate=1,activation_fn=None,scope='g_'+str(sp)+'_conv100')
         net=(net+1.0)/2.0*255.0
         split0,split1,split2=tf.split(0,3,tf.transpose(net,perm=[3,1,2,0]))
         net=tf.concat(3,[split0,split1,split2])
@@ -90,10 +90,10 @@ with tf.variable_scope(tf.get_variable_scope()):
     vgg_fake=build_vgg19(generator,reuse=True)
     p0=compute_error(vgg_real['input'],vgg_fake['input'],label)
     p1=compute_error(vgg_real['conv1_2'],vgg_fake['conv1_2'],label)/2.6
-    p2=compute_error(vgg_real['conv2_2'],vgg_fake['conv2_2'],tf.image.resize_area(label,(sp//2,sp)))/4.8
-    p3=compute_error(vgg_real['conv3_2'],vgg_fake['conv3_2'],tf.image.resize_area(label,(sp//4,sp//2)))/3.7
-    p4=compute_error(vgg_real['conv4_2'],vgg_fake['conv4_2'],tf.image.resize_area(label,(sp//8,sp//4)))/5.6
-    p5=compute_error(vgg_real['conv5_2'],vgg_fake['conv5_2'],tf.image.resize_area(label,(sp//16,sp//8)))*10/1.5
+    p2=compute_error(vgg_real['conv2_2'],vgg_fake['conv2_2'],tf.image.resize_area(label,(sp//2,sp//2)))/4.8
+    p3=compute_error(vgg_real['conv3_2'],vgg_fake['conv3_2'],tf.image.resize_area(label,(sp//4,sp//4)))/3.7
+    p4=compute_error(vgg_real['conv4_2'],vgg_fake['conv4_2'],tf.image.resize_area(label,(sp//8,sp//8)))/5.6
+    p5=compute_error(vgg_real['conv5_2'],vgg_fake['conv5_2'],tf.image.resize_area(label,(sp//16,sp//16)))*10/1.5
     content_loss=p0+p1+p2+p3+p4+p5
     G_loss=tf.reduce_sum(tf.reduce_min(content_loss,reduction_indices=0))*0.999+tf.reduce_sum(tf.reduce_mean(content_loss,reduction_indices=0))*0.001
 lr=tf.placeholder(tf.float32)
@@ -163,9 +163,8 @@ if is_training:
             output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3)})
             output=np.minimum(np.maximum(output,0.0),255.0)
             upper=np.concatenate((output[0,:,:,:],output[1,:,:,:],output[2,:,:,:]),axis=1)
-            middle=np.concatenate((output[3,:,:,:],output[4,:,:,:],output[5,:,:,:]),axis=1)
-            bottom=np.concatenate((output[6,:,:,:],output[7,:,:,:],output[8,:,:,:]),axis=1)
-            scipy.misc.toimage(np.concatenate((upper,middle,bottom),axis=0),cmin=0,cmax=255).save(os.path.join(checkpoint_name, "%04d/%s_output.jpg"%(epoch,file_name)))
+            bottom=np.concatenate((output[3,:,:,:],output[4,:,:,:],output[5,:,:,:]),axis=1)
+            scipy.misc.toimage(np.concatenate((upper,bottom),axis=0),cmin=0,cmax=255).save(os.path.join(checkpoint_name, "%04d/%s_output.jpg"%(epoch,file_name)))
 
 if not os.path.isdir(os.path.join(checkpoint_name, "final")):
     os.makedirs(os.path.join(checkpoint_name, "final"))
@@ -178,6 +177,5 @@ for i in range(testing_count):
     output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3)})
     output=np.minimum(np.maximum(output, 0.0), 255.0)
     upper=np.concatenate((output[0,:,:,:],output[1,:,:,:],output[2,:,:,:]),axis=1)
-    middle=np.concatenate((output[3,:,:,:],output[4,:,:,:],output[5,:,:,:]),axis=1)
-    bottom=np.concatenate((output[6,:,:,:],output[7,:,:,:],output[8,:,:,:]),axis=1)
-    scipy.misc.toimage(np.concatenate((upper,middle,bottom),axis=0),cmin=0,cmax=255).save(os.path.join(checkpoint_name, "final/%s_output.jpg" % file_name))
+    bottom=np.concatenate((output[3,:,:,:],output[4,:,:,:],output[5,:,:,:]),axis=1)
+    scipy.misc.toimage(np.concatenate((upper,middle),axis=0),cmin=0,cmax=255).save(os.path.join(checkpoint_name, "final/%s_output.jpg" % file_name))
