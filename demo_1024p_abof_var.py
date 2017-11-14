@@ -131,9 +131,7 @@ print 'testing_count: ', testing_count
 
 if is_training:
     g_loss=np.zeros(training_count,dtype=float)
-    input_images=[None]*training_count
-    label_images=[None]*training_count
-    for epoch in range(1,21):
+    for epoch in range(1,11):
         if os.path.isdir(os.path.join(checkpoint_name, "%04d" % epoch)):
             continue
         cnt=0
@@ -141,10 +139,9 @@ if is_training:
             file_name = file_list[i]
             st=time.time()
             cnt+=1
-            if input_images[i] is None:
-                label_images[i]=helper.get_index_semantic_map(os.path.join(dir_label, file_name), n_classes)#training label
-                input_images[i]=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_image, file_name.replace('.png','.jpg')))),axis=0)#training image
-            _,G_current,l0,l1,l2,l3,l4,l5=sess.run([G_opt,G_loss,p0,p1,p2,p3,p4,p5],feed_dict={label:np.concatenate((label_images[i],np.expand_dims(1-np.sum(label_images[i],axis=3),axis=3)),axis=3),real_image:input_images[i],lr:1e-4})#may try lr:min(1e-6*np.power(1.1,epoch-1),1e-4 if epoch>100 else 1e-3) in case lr:1e-4 is not good
+            label_image=helper.get_index_semantic_map(os.path.join(dir_label, file_name), n_classes)#training label
+            input_image=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_image, file_name.replace('.png','.jpg')))),axis=0)#training image
+            _,G_current,l0,l1,l2,l3,l4,l5=sess.run([G_opt,G_loss,p0,p1,p2,p3,p4,p5],feed_dict={label:np.concatenate((label_image,np.expand_dims(1-np.sum(label_image,axis=3),axis=3)),axis=3),real_image:input_image,lr:1e-4})#may try lr:min(1e-6*np.power(1.1,epoch-1),1e-4 if epoch>100 else 1e-3) in case lr:1e-4 is not good
             g_loss[i]=G_current
             print("%d %d %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f"%(epoch,cnt,np.mean(g_loss[np.where(g_loss)]),np.mean(l0),np.mean(l1),np.mean(l2),np.mean(l3),np.mean(l4),np.mean(l5),time.time()-st))
         os.makedirs(os.path.join(checkpoint_name, "%04d" % epoch))
@@ -163,7 +160,7 @@ if is_training:
             output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3)})
             output=np.minimum(np.maximum(output,0.0),255.0)
             upper=np.concatenate((output[0,:,:,:],output[1,:,:,:]),axis=1)
-            scipy.misc.toimage(np.concatenate((upper),axis=0),cmin=0,cmax=255).save(os.path.join(checkpoint_name, "%04d/%s_output.jpg"%(epoch,file_name)))
+            scipy.misc.toimage(upper,cmin=0,cmax=255).save(os.path.join(checkpoint_name, "%04d/%s_output.jpg"%(epoch,file_name)))
 
 if not os.path.isdir(os.path.join(checkpoint_name, "final")):
     os.makedirs(os.path.join(checkpoint_name, "final"))
@@ -177,4 +174,4 @@ for i in range(testing_count):
     output=np.minimum(np.maximum(output, 0.0), 255.0)
     upper=np.concatenate((output[0,:,:,:],output[1,:,:,:]),axis=1)
 
-    scipy.misc.toimage(np.concatenate((upper),axis=0),cmin=0,cmax=255).save(os.path.join(checkpoint_name, "final/%s_output.jpg" % file_name))
+    scipy.misc.toimage(upper,cmin=0,cmax=255).save(os.path.join(checkpoint_name, "final/%s_output.jpg" % file_name))
