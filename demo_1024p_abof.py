@@ -147,7 +147,7 @@ if is_training:
         target.close()
         saver.save(sess, os.path.join(checkpoint_name, "model.ckpt"))
         if epoch%20==0:
-            saver.save(sess, os.path.join(checkpoint_name, "model.ckpt" % epoch))
+            saver.save(sess, os.path.join(checkpoint_name, "model_%04d.ckpt" % epoch))
         for i in range(testing_count):
             file_name = file_list[training_count + i]
             if not os.path.isfile(os.path.join(dir_label, file_name)):#test label
