@@ -26,6 +26,13 @@ def get_index_semantic_map(path,n_classes):
         tmp[:,:,k]=np.float32((semantic[:,:]==k))
     return tmp.reshape((1,)+tmp.shape)
 
+def get_binary_semantic_map(path):
+    semantic=scipy.misc.imread(path)
+    tmp=np.zeros((semantic.shape[0],semantic.shape[1],2),dtype=np.float32)
+    tmp[:,:,0]=np.float32((semantic[:,:]==0))
+    tmp[:,:,1]=np.float32((semantic[:,:]>0))
+    return tmp.reshape((1,)+tmp.shape)
+
 def print_semantic_map(semantic,path):
     dataset=Dataset(default_dataset)
     semantic=semantic.transpose([1,2,3,0])
