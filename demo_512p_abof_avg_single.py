@@ -136,9 +136,9 @@ if is_training:
             st=time.time()
             cnt+=1
             label_image=helper.get_index_semantic_map(os.path.join(dir_label, file_name), n_classes)#training label
-            avg_image=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_avg_image, file_name))),axis=0)#training average image
+            average_image=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_avg_image, file_name))),axis=0)#training average image
             input_image=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_image, file_name.replace('.png','.jpg')))),axis=0)#training image
-            _,G_current,l0,l1,l2,l3,l4,l5=sess.run([G_opt,G_loss,p0,p1,p2,p3,p4,p5],feed_dict={label:np.concatenate((label_image,np.expand_dims(1-np.sum(label_image,axis=3),axis=3)),axis=3),real_image:input_image,avg_image:avg_image,lr:1e-4)})
+            _,G_current,l0,l1,l2,l3,l4,l5=sess.run([G_opt,G_loss,p0,p1,p2,p3,p4,p5],feed_dict={label:np.concatenate((label_image,np.expand_dims(1-np.sum(label_image,axis=3),axis=3)),axis=3),real_image:input_image,avg_image:average_image,lr:1e-4})
             g_loss[i]=G_current
             print("%d %d %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f"%(epoch,cnt,np.mean(g_loss[np.where(g_loss)]),np.mean(l0),np.mean(l1),np.mean(l2),np.mean(l3),np.mean(l4),np.mean(l5),time.time()-st))
         os.makedirs(os.path.join(checkpoint_name, "%04d" % epoch))
