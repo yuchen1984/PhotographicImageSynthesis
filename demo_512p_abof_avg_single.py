@@ -93,7 +93,7 @@ with tf.variable_scope(tf.get_variable_scope()):
     p5=compute_error(vgg_real['conv5_2'],vgg_fake['conv5_2'],tf.image.resize_area(label,(sp//16,sp//16)))*10/1.5
     G_loss=p0+p1+p2+p3+p4+p5
 lr=tf.placeholder(tf.float32)
-G_opt=tf.train.AdamOptimizer(learning_rate=lr).minimize(G_loss,var_list=[var for var in tf.trainable_variables()])
+G_opt=tf.train.AdamOptimizer(learning_rate=lr).minimize(G_loss,var_list=[var for var in tf.trainable_variables() if var.name.startswith('g_')])
 saver=tf.train.Saver(max_to_keep=1000)
 sess.run(tf.global_variables_initializer())
 
@@ -110,6 +110,7 @@ else:
     saver=tf.train.Saver(var_list=[var for var in tf.trainable_variables() if var.name.startswith('g_') and not var.name.startswith('g_512')])
     print('loaded '+ckpt_prev.model_checkpoint_path)
     saver.restore(sess,ckpt_prev.model_checkpoint_path)
+saver=tf.train.Saver(max_to_keep=1000)
 
 # Read all existing image files in the folder
 dir_label = "data/abof512x512/label/"

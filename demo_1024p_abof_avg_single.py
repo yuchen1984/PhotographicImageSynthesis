@@ -112,6 +112,7 @@ else:
     saver=tf.train.Saver(var_list=[var for var in tf.trainable_variables() if var.name.startswith('g_') and not var.name.startswith('g_1024')])
     print('loaded '+ckpt_prev.model_checkpoint_path)
     saver.restore(sess,ckpt_prev.model_checkpoint_path)
+saver=tf.train.Saver(max_to_keep=1000)
 
 # Read all existing image files in the folder
 dir_label = "data/abof1024x1024/label/"

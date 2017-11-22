@@ -90,7 +90,7 @@ with tf.variable_scope(tf.get_variable_scope()):
     p5=compute_error(vgg_real['conv5_2'],vgg_fake['conv5_2'],tf.image.resize_area(label,(sp//16,sp//16)))*10/1.5
     G_loss=p0+p1+p2+p3+p4+p5
 lr=tf.placeholder(tf.float32)
-G_opt=tf.train.AdamOptimizer(learning_rate=lr).minimize(G_loss,var_list=[var for var in tf.trainable_variables()])
+G_opt=tf.train.AdamOptimizer(learning_rate=lr).minimize(G_loss,var_list=[var for var in tf.trainable_variables() if var.name.startswith('g_')])
 sess.run(tf.global_variables_initializer())
 
 pretrained_checkpoint_name = "result_256p_abof"

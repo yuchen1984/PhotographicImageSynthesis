@@ -111,7 +111,7 @@ for f in os.listdir(dir_label):
   if f.endswith(".png"):
     #print(f)
     file_list.append(f)
-training_count = int(len(file_list) * 0.8)
+training_count = int(len(file_list) * 0.9)
 testing_count = len(file_list) - training_count
 print 'training_count: ', training_count
 print 'testing_count: ', testing_count
@@ -133,7 +133,7 @@ if is_training:
                 label_images[i]=helper.get_index_semantic_map(os.path.join(dir_label, file_name), n_classes)#training label
                 avg_images[i]=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_avg_image, file_name))),axis=0)#training average image
                 input_images[i]=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_image, file_name.replace('.png','.jpg')))),axis=0)#training image
-            _,G_current,l0,l1,l2,l3,l4,l5=sess.run([G_opt,G_loss,p0,p1,p2,p3,p4,p5],feed_dict={label:np.concatenate((label_images[i],np.expand_dims(1-np.sum(label_images[i],axis=3),axis=3)),axis=3),real_image:input_images[i],avg_image:avg_images[i],lr:1e-4})#may try lr:min(1e-6*np.power(1.1,epoch-1),1e-4 if epoch>100 else 1e-3) in case lr:1e-4 is not good
+            _,G_current,l0,l1,l2,l3,l4,l5=sess.run([G_opt,G_loss,p0,p1,p2,p3,p4,p5],feed_dict={label:np.concatenate((label_images[i],np.expand_dims(1-np.sum(label_images[i],axis=3),axis=3)),axis=3),real_image:input_images[i],avg_image:avg_images[i],lr: 1e-4})#may try lr:min(1e-6*np.power(1.1,epoch-1),1e-4 if epoch>100 else 1e-3) in case lr:1e-4 is not good
             g_loss[i]=G_current
             print("%d %d %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f"%(epoch,cnt,np.mean(g_loss[np.where(g_loss)]),np.mean(l0),np.mean(l1),np.mean(l2),np.mean(l3),np.mean(l4),np.mean(l5),time.time()-st))
         os.makedirs(os.path.join(checkpoint_name, "%04d" % epoch))
