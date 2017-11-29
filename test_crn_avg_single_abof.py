@@ -45,7 +45,7 @@ def recursive_generator(label,avg_image,sp):
 parser = argparse.ArgumentParser()
 parser.add_argument("-wd", "--working_dir", type=str, help="Working directory", default="./testdata/")
 parser.add_argument("-l", "--label_image", type=str, help="Label image name", default="label.png")
-parser.add_argument("-ai", "--average_image", type=str, help="Average image name", default="average.jpg")
+parser.add_argument("-a", "--average_image", type=str, help="Average image name", default="average.jpg")
 parser.add_argument("-o", "--output_image", type=str, help="Output image name", default="output.jpg")
 parser.add_argument("-cn", "--checkpoint_name", type=str, help="Checkpoint name", default="result_1024p_abof_avg_single")
 parser.add_argument("-sp", "--resolution", type=int, help="Image height", default=1024)
@@ -59,11 +59,11 @@ try:
   #os.system('rm tmp')
   sess=tf.Session()
   n_classes = args.num_classes
-  sp=args.sp 
+  sp=args.resolution 
 
   with tf.variable_scope(tf.get_variable_scope()):
       label=tf.placeholder(tf.float32,[None,None,None,n_classes + 1])
-      real_image=tf.placeholder(tf.float32,[None,None,None,3])
+      avg_image=tf.placeholder(tf.float32,[None,None,None,3])
       generator=recursive_generator(label,avg_image,sp)
   sess.run(tf.global_variables_initializer())
 
@@ -77,14 +77,14 @@ try:
   else:
       raise Exception("Invalid check point")
 
-  if not os.path.isfile(os.path.join(args.working_dir, file_name)) or not os.path.isfile(os.path.join(args.working_dir, file_name)):#test average image not exist
+  if not os.path.isfile(os.path.join(args.working_dir, args.label_image)) or not os.path.isfile(os.path.join(args.working_dir, args.average_image)):#test average image not exist
       raise Exception("Invalid label image or average image path")
       
   semantic=helper.get_index_semantic_map(os.path.join(args.working_dir, args.label_image), n_classes)#test label
   test_avg_image=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(args.working_dir, args.average_image))),axis=0)#test average image
   output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3),avg_image:test_avg_image})
   output=np.minimum(np.maximum(output, 0.0), 255.0)
-  scipy.misc.toimage(output[0,:,:,:],cmin=0,cmax=255).save(os.path.join(args.working_dir, args.output_image)
+  scipy.misc.toimage(output[0,:,:,:],cmin=0,cmax=255).save(os.path.join(args.working_dir, args.output_image))
 except Exception as err:
   print('Quit by errors: ' , err)
   traceback.print_exc()
