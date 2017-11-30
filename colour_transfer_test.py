@@ -13,6 +13,17 @@ def pil_to_nparray(pil_image):
 
 rgb_to_hsv = np.vectorize(colorsys.rgb_to_hsv)
 hsv_to_rgb = np.vectorize(colorsys.hsv_to_rgb)
+rgb_to_yiq = np.vectorize(colorsys.rgb_to_yiq)
+yiq_to_rgb = np.vectorize(colorsys.yiq_to_rgb)
+
+def gamma_estimation(arr, arr2, mask):
+  sum_intensity = np.sum(arr * mask)
+  sum_intensity2 = np.sum(arr2 * mask)
+  sum_mask = np.sum(mask)
+  avg_v = sum_intensity / sum_mask
+  avg_v2 = sum_intensity2 / sum_mask
+  gamma = np.log(avg_v2) / np.log(avg_v)
+  return gamma
 
 def shift_hue(arr, arr_t, mask):
     r, g, b = (np.rollaxis(arr, axis=-1)) / 255.0
@@ -20,7 +31,17 @@ def shift_hue(arr, arr_t, mask):
 
     h, s, v = rgb_to_hsv(r, g, b)
     h2, s2, v2 = rgb_to_hsv(r2, g2, b2)
+    
     ro, go, bo = hsv_to_rgb(h2 * mask + h * (1 - mask), s2 * mask + s * (1 - mask), v)
+    
+    # Apply gamma correction to balance the brightness
+    yo, io, qo = rgb_to_yiq(ro, go, bo)
+    y2, i2, q2 = rgb_to_yiq(r2, g2, b2)
+    gamma = gamma_estimation(yo, y2, mask)
+    print 'gamma = ', gamma
+    
+    ro, go, bo = yiq_to_rgb(np.power(yo, gamma) * mask + yo * (1 - mask), io, qo)
+    
     arr_out = np.dstack((ro, go, bo)) * 255.0
     return arr_out
 
@@ -31,18 +52,19 @@ def colorize(img, avg_img_t, mask):
     """
     arr = np.array(np.asarray(img).astype('float'))
     arr_t = np.array(np.asarray(avg_img_t).astype('float'))
-    new_img = Image.fromarray(shift_hue(arr, arr_t, mask).astype('uint8'), 'RGB')
+    arr_sh = shift_hue(arr, arr_t, mask).astype('uint8')
+    new_img = Image.fromarray(arr_sh, 'RGB')
 
     return new_img
         
     
 working_dir = './testdata'
-image_name = '11182_112822_5'
-#image_name = '9821_134993_1'
+#image_name = '11182_112822_5'
+image_name = '9821_134993_1'
 #image_name = '9817_135005_2'
 #image_name = '5_311937_2'
 #image_name = '4_126332_1'
-modifier = 'm0'
+modifier = 'm2'
 file_name_in = 'a_' + image_name + '.jpg'
 file_name_out = 'a_' + image_name + '_' + modifier + '.jpg'
 file_name_in_label = 'l_' + image_name + '.png'
