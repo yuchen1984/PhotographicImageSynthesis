@@ -161,7 +161,7 @@ if is_training:
             if not os.path.isfile(os.path.join(dir_self_image, file_name)):#test average image
                 continue
             semantic=helper.get_index_semantic_map(os.path.join(dir_label, file_name), n_classes)#test label
-            test_avg_image=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_self_image, file_name))),axis=0)#test average image
+            test_self_image=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_self_image, file_name))),axis=0)#test average image
             output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3),avg_image:test_avg_image})
             full_image = output[0,:,:,:] + test_self_image[0,:,:,:] - 128
             output=np.minimum(np.maximum(output,0.0),255.0)
@@ -180,7 +180,7 @@ for i in range(testing_count):
     if not os.path.isfile(os.path.join(dir_self_image, file_name)):#test average image
         continue
     semantic=helper.get_index_semantic_map(os.path.join(dir_label, file_name), n_classes)#test label
-    test_avg_image=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_self_image, file_name))),axis=0)#test average image
+    test_self_image=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_self_image, file_name))),axis=0)#test average image
     output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3),avg_image:test_avg_image})
     full_image = output[0,:,:,:] + test_self_image[0,:,:,:] - 128
     output=np.minimum(np.maximum(output, 0.0), 255.0)
