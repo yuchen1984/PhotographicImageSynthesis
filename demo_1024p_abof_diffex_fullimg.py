@@ -90,6 +90,8 @@ with tf.variable_scope(tf.get_variable_scope()):
     weight=tf.placeholder(tf.float32)
     vgg_real=build_vgg19(real_full_image)
     vgg_fake=build_vgg19(fake_full_image,reuse=True)
+    vgg_real_diff=build_vgg19(real_image,reuse=True)
+    vgg_fake_diff=build_vgg19(generator,reuse=True)
     p0=compute_error(vgg_real['input'],vgg_fake['input'],label)
     p1=compute_error(vgg_real['conv1_2'],vgg_fake['conv1_2'],label)/2.6
     p2=compute_error(vgg_real['conv2_2'],vgg_fake['conv2_2'],tf.image.resize_area(label,(sp//2,sp//2)))/4.8
@@ -170,7 +172,7 @@ if is_training:
                 continue
             semantic=helper.get_index_semantic_map(os.path.join(dir_label, file_name), n_classes)#test label
             test_self_image=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_self_image, file_name))),axis=0)#test average image
-            output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3),avg_image:test_avg_image})
+            output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3),avg_image:test_self_image})
             full_image = output[0,:,:,:] + test_self_image[0,:,:,:] - 128
             output=np.minimum(np.maximum(output,0.0),255.0)
             full_image=np.minimum(np.maximum(full_image,0.0),255.0)
@@ -189,7 +191,7 @@ for i in range(testing_count):
         continue
     semantic=helper.get_index_semantic_map(os.path.join(dir_label, file_name), n_classes)#test label
     test_self_image=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_self_image, file_name))),axis=0)#test average image
-    output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3),avg_image:test_avg_image})
+    output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3),avg_image:test_self_image})
     full_image = output[0,:,:,:] + test_self_image[0,:,:,:] - 128
     output=np.minimum(np.maximum(output, 0.0), 255.0)
     full_image=np.minimum(np.maximum(full_image,0.0),255.0)
