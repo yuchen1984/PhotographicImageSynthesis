@@ -1,0 +1,6 @@
+{
+  "optimizer": "momentum",
+  "initial_lr": 0.001,
+  "lr_decay": 0.9,
+  "decay_step": 500
+}
