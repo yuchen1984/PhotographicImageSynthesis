@@ -35,8 +35,8 @@ def recursive_generator(label,noshadow_image,sp):
         input=tf.concat(3,[label,noshadow_image])
     else:
         downsampled=tf.image.resize_area(label,(sp//2,sp//2),align_corners=False)
-        downsampled_avg=tf.image.resize_area(noshadow_image,(sp//2,sp//2),align_corners=False)
-        input=tf.concat(3,[tf.image.resize_bilinear(recursive_generator(downsampled,downsampled_avg,sp//2),(sp,sp),align_corners=True),label,noshadow_image])
+        downsampled_noshadow=tf.image.resize_bilinear(noshadow_image,(sp//2,sp//2),align_corners=False)
+        input=tf.concat(3,[tf.image.resize_bilinear(recursive_generator(downsampled,downsampled_noshadow,sp//2),(sp,sp),align_corners=True),label,noshadow_image])
     net=slim.conv2d(input,dim,[3,3],rate=1,normalizer_fn=slim.layer_norm,activation_fn=lrelu,scope='g_'+str(sp)+'_conv1')
     net=slim.conv2d(net,dim,[3,3],rate=1,normalizer_fn=slim.layer_norm,activation_fn=lrelu,scope='g_'+str(sp)+'_conv2')
     if sp==1024:
@@ -46,11 +46,11 @@ def recursive_generator(label,noshadow_image,sp):
 
 # Basic model parameters as external flags.
 parser = argparse.ArgumentParser()
-parser.add_argument("-wd", "--working_dir", type=str, help="Working directory", default="./testdata/")
+parser.add_argument("-wd", "--working_dir", type=str, help="Working directory", default="./")
 parser.add_argument("-l", "--label_image", type=str, help="Label image name", default="label.png")
 parser.add_argument("-a", "--noshadow_image", type=str, help="No shadow image name", default="no_shadow.png")
 parser.add_argument("-o", "--output_image", type=str, help="Output image name", default="output.png")
-parser.add_argument("-cn", "--checkpoint_name", type=str, help="Checkpoint name", default="cp_1024p_abof_diffex_pixelwise_pil")
+parser.add_argument("-cn", "--checkpoint_name", type=str, help="Checkpoint name", default="result_1024p_cp_diff_pix_pil")
 parser.add_argument("-sp", "--resolution", type=int, help="Image height", default=1024)
 parser.add_argument("-nc", "--num_classes", type=int, help="Num of segmentation label classes", default=5)
 args = parser.parse_args()
@@ -93,13 +93,13 @@ try:
   #pil_test_noshadow_image.save(os.path.join(args.working_dir, "input_" + args.output_image))
 
   output=sess.run(reconstruction,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3),noshadow_image:test_noshadow_image})
-  full_image = test_noshadow_image[0,:,:,:] - output[0,:,:,:]
+  diff_image = test_noshadow_image[0,:,:,:] - output[0,:,:,:]
   output=np.minimum(np.maximum(output, 0.0), 255.0)
-  full_image=np.minimum(np.maximum(full_image,0.0),255.0)
-  pil_diff_image = Image.fromarray(np.uint8(output[0,:,:,:]),mode='RGB')
+  diff_image=np.minimum(np.maximum(diff_image,0.0),255.0)
+  pil_diff_image = Image.fromarray(np.uint8(diff_image),mode='RGB')
   pil_diff_image.info = pil_noshadow_image.info
   pil_diff_image.save(os.path.join(args.working_dir, "diff_" + args.output_image))
-  pil_full_image = Image.fromarray(np.uint8(full_image),mode='RGB')
+  pil_full_image = Image.fromarray(np.uint8(output[0,:,:,:]),mode='RGB')
   pil_full_image.info = pil_noshadow_image.info
   pil_full_image.save(os.path.join(args.working_dir, args.output_image))
 except Exception as err:

@@ -82,18 +82,18 @@ n_classes = 5
 sp=1024#spatial resolution: 512X512
 with tf.variable_scope(tf.get_variable_scope()):
     label=tf.placeholder(tf.float32,[None,None,None,n_classes + 1])
-    real_image=tf.placeholder(tf.float32,[None,None,None,3])
+    real_diff_image=tf.placeholder(tf.float32,[None,None,None,3])
     avg_image=tf.placeholder(tf.float32,[None,None,None,3])
     generator=recursive_generator(label,avg_image,sp)
     weight=tf.placeholder(tf.float32)
     fake_full_image = avg_image - generator
-    real_full_image = avg_image - real_image
+    real_full_image = avg_image - real_diff_image
     weight=tf.placeholder(tf.float32)
     vgg_real=build_vgg19(real_full_image)
     vgg_fake=build_vgg19(fake_full_image,reuse=True)
     fake_full_image = tf.clip_by_value(fake_full_image, tf.cast(0.0, dtype=_FLOATX), tf.cast(255.0, dtype=_FLOATX))
     real_full_image = tf.clip_by_value(real_full_image, tf.cast(0.0, dtype=_FLOATX), tf.cast(255.0, dtype=_FLOATX))
-    vgg_real_diff=build_vgg19(real_image,reuse=True)
+    vgg_real_diff=build_vgg19(real_diff_image,reuse=True)
     vgg_fake_diff=build_vgg19(generator,reuse=True)
     p0=compute_error(vgg_real['input'],vgg_fake['input'],label)
     p1=compute_error(vgg_real['conv1_2'],vgg_fake['conv1_2'],label)/2.6
@@ -156,7 +156,7 @@ if is_training:
             label_image=helper.get_index_semantic_map(os.path.join(dir_label, file_name.replace('_ns','_mask')), n_classes)#training label
             self_image=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_self_image, file_name))),axis=0)#training average image
             diff_image=np.expand_dims(np.float32(scipy.misc.imread(os.path.join(dir_diff_image, file_name.replace('_ns','_diff')))),axis=0)#training image
-            _,G_current,l0,l1,l2,l3,l4,l5=sess.run([G_opt,G_loss,p0,p1,p2,p3,p4,p5],feed_dict={label:np.concatenate((label_image,np.expand_dims(1-np.sum(label_image,axis=3),axis=3)),axis=3),real_image:diff_image,avg_image:self_image,lr:1e-4})
+            _,G_current,l0,l1,l2,l3,l4,l5=sess.run([G_opt,G_loss,p0,p1,p2,p3,p4,p5],feed_dict={label:np.concatenate((label_image,np.expand_dims(1-np.sum(label_image,axis=3),axis=3)),axis=3),real_diff_image:diff_image,avg_image:self_image,lr:1e-4})
             g_loss[i]=G_current
             print("%d %d %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f"%(epoch,cnt,np.mean(g_loss[np.where(g_loss)]),np.mean(l0),np.mean(l1),np.mean(l2),np.mean(l3),np.mean(l4),np.mean(l5),time.time()-st))
         os.makedirs(os.path.join(checkpoint_name, "%04d" % epoch))

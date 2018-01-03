@@ -53,18 +53,18 @@ def build_vgg19(input,reuse=False):
     net['pool5']=build_net('pool',net['conv5_4'])
     return net
 
-def recursive_generator(label,avg_image,sp):
+def recursive_generator(label,noshadow_image,sp):
     dim=512 if sp>=128 else 1024
     if sp==512:
         dim=128
     if sp==1024:
         dim=32
     if sp==4:
-        input=tf.concat(3,[label,avg_image])
+        input=tf.concat(3,[label,noshadow_image])
     else:
         downsampled=tf.image.resize_area(label,(sp//2,sp//2),align_corners=False)
-        downsampled_avg=tf.image.resize_area(avg_image,(sp//2,sp//2),align_corners=False)
-        input=tf.concat(3,[tf.image.resize_bilinear(recursive_generator(downsampled,downsampled_avg,sp//2),(sp,sp),align_corners=True),label,avg_image])
+        downsampled_noshadow=tf.image.resize_bilinear(noshadow_image,(sp//2,sp//2),align_corners=False)
+        input=tf.concat(3,[tf.image.resize_bilinear(recursive_generator(downsampled,downsampled_noshadow,sp//2),(sp,sp),align_corners=True),label,noshadow_image])
     net=slim.conv2d(input,dim,[3,3],rate=1,normalizer_fn=slim.layer_norm,activation_fn=lrelu,scope='g_'+str(sp)+'_conv1')
     net=slim.conv2d(net,dim,[3,3],rate=1,normalizer_fn=slim.layer_norm,activation_fn=lrelu,scope='g_'+str(sp)+'_conv2')
     if sp==1024:
@@ -85,11 +85,11 @@ sp=1024#spatial resolution: 512X512
 with tf.variable_scope(tf.get_variable_scope()):
     label=tf.placeholder(tf.float32,[None,None,None,n_classes + 1])
     real_image=tf.placeholder(tf.float32,[None,None,None,3])
-    avg_image=tf.placeholder(tf.float32,[None,None,None,3])
-    generator=recursive_generator(label,avg_image,sp)
+    noshadow_image=tf.placeholder(tf.float32,[None,None,None,3])
+    generator=recursive_generator(label,noshadow_image,sp)
     weight=tf.placeholder(tf.float32)
-    fake_full_image = avg_image - generator
-    real_full_image = avg_image - real_image
+    fake_full_image = noshadow_image - generator
+    real_full_image = noshadow_image - real_image
     fake_full_image = tf.clip_by_value(fake_full_image, tf.cast(0.0, dtype=_FLOATX), tf.cast(255.0, dtype=_FLOATX))
     real_full_image = tf.clip_by_value(real_full_image, tf.cast(0.0, dtype=_FLOATX), tf.cast(255.0, dtype=_FLOATX))
     weight=tf.placeholder(tf.float32)
@@ -153,7 +153,7 @@ if is_training:
             label_image=helper.get_index_semantic_map(os.path.join(dir_label, file_name.replace('_ns','_mask')), n_classes)#training label
             self_image=np.expand_dims(np.float32(pil_to_nparray(load_image(os.path.join(dir_self_image, file_name)))),axis=0)#training average image
             diff_image=np.expand_dims(np.float32(pil_to_nparray(load_image(os.path.join(dir_diff_image, file_name.replace('_ns','_diff'))))),axis=0)#training image
-            _,G_current,l0,l0d,l1d,l2d,l3d,l4d,l5d=sess.run([G_opt,G_loss,p0,p0d,p1d,p2d,p3d,p4d,p5d],feed_dict={label:np.concatenate((label_image,np.expand_dims(1-np.sum(label_image,axis=3),axis=3)),axis=3),real_image:diff_image,avg_image:self_image,lr:1e-4})
+            _,G_current,l0,l0d,l1d,l2d,l3d,l4d,l5d=sess.run([G_opt,G_loss,p0,p0d,p1d,p2d,p3d,p4d,p5d],feed_dict={label:np.concatenate((label_image,np.expand_dims(1-np.sum(label_image,axis=3),axis=3)),axis=3),real_image:diff_image,noshadow_image:self_image,lr:1e-4})
             g_loss[i]=G_current
             print("%d %d %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f"%(epoch,cnt,np.mean(g_loss[np.where(g_loss)]),np.mean(l0),np.mean(l0d),np.mean(l1d),np.mean(l2d),np.mean(l3d),np.mean(l4d),np.mean(l5d),time.time()-st))
         os.makedirs(os.path.join(checkpoint_name, "%04d" % epoch))
@@ -176,7 +176,7 @@ if is_training:
             pil_test_self_image = Image.fromarray(np.uint8(test_self_image[0,:,:,:]),mode='RGB')
             pil_test_self_image.info = timg.info
             pil_test_self_image.save(os.path.join(checkpoint_name, "%04d/%s_input.png"%(epoch,file_name)))
-            output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3),avg_image:test_self_image})
+            output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3),noshadow_image:test_self_image})
             full_image =  test_self_image[0,:,:,:] - output[0,:,:,:]
             output=np.minimum(np.maximum(output,0.0),255.0)
             full_image=np.minimum(np.maximum(full_image,0.0),255.0)
@@ -203,7 +203,7 @@ for i in range(testing_count):
     pil_test_self_image = Image.fromarray(np.uint8(test_self_image[0,:,:,:]),mode='RGB')
     pil_test_self_image.info = timg.info
     pil_test_self_image.save(os.path.join(checkpoint_name, "final/%s_input.png"%(file_name)))
-    output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3),avg_image:test_self_image})
+    output=sess.run(generator,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3),noshadow_image:test_self_image})
     full_image =  test_self_image[0,:,:,:] - output[0,:,:,:]
     output=np.minimum(np.maximum(output, 0.0), 255.0)
     full_image=np.minimum(np.maximum(full_image,0.0),255.0)
