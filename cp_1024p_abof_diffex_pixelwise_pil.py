@@ -106,7 +106,7 @@ with tf.variable_scope(tf.get_variable_scope()):
     p5d=compute_error(vgg_real_diff['conv5_2'],vgg_fake_diff['conv5_2'],tf.image.resize_area(label,(sp//16,sp//16)))*10/1.5#weights lambda are collected at 100th epoch
     G_loss=p0+p0d+p1d+p2d+p3d+p4d+p5d
 lr=tf.placeholder(tf.float32)
-G_opt=tf.train.AdamOptimizer(learning_rate=lr).minimize(G_loss,var_list=[var for var in tf.trainable_variables() if var.name.startswith('g_1024') or var.name.startswith('g_512') or var.name.startswith('g_256') or var.name.startswith('g_128')])
+G_opt=tf.train.AdamOptimizer(learning_rate=lr).minimize(G_loss,var_list=[var for var in tf.trainable_variables() if var.name.startswith('g_')])
 saver=tf.train.Saver(max_to_keep=1000)
 sess.run(tf.global_variables_initializer())
 
@@ -151,8 +151,8 @@ if is_training:
             st=time.time()
             cnt+=1
             label_image=helper.get_index_semantic_map(os.path.join(dir_label, file_name.replace('_ns','_mask')), n_classes)#training label
-            self_image=np.expand_dims(np.float32(pil_to_nparray(load_image(os.path.join(dir_self_image, file_name)))),axis=0)#training average image
-            diff_image=np.expand_dims(np.float32(pil_to_nparray(load_image(os.path.join(dir_diff_image, file_name.replace('_ns','_diff'))))),axis=0)#training image
+            self_image=np.expand_dims(pil_to_nparray(load_image(os.path.join(dir_self_image, file_name))),axis=0)#training average image
+            diff_image=np.expand_dims(pil_to_nparray(load_image(os.path.join(dir_diff_image, file_name.replace('_ns','_diff')))),axis=0)#training image
             _,G_current,l0,l0d,l1d,l2d,l3d,l4d,l5d=sess.run([G_opt,G_loss,p0,p0d,p1d,p2d,p3d,p4d,p5d],feed_dict={label:np.concatenate((label_image,np.expand_dims(1-np.sum(label_image,axis=3),axis=3)),axis=3),real_image:diff_image,noshadow_image:self_image,lr:1e-4})
             g_loss[i]=G_current
             print("%d %d %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f %.2f"%(epoch,cnt,np.mean(g_loss[np.where(g_loss)]),np.mean(l0),np.mean(l0d),np.mean(l1d),np.mean(l2d),np.mean(l3d),np.mean(l4d),np.mean(l5d),time.time()-st))
