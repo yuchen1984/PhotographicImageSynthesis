@@ -83,6 +83,7 @@ try:
   if not os.path.isfile(os.path.join(args.working_dir, args.noshadow_image)):#test average image not exist
       raise Exception("Invalid label image or average image path")
       
+  st=time.time()    
   pil_noshadow_image = Image.open(os.path.join(args.working_dir, args.noshadow_image))
   iw, ih = pil_noshadow_image.size
   noshadow_image_arr = pil_to_nparray(pil_noshadow_image)
@@ -93,7 +94,10 @@ try:
   #pil_test_noshadow_image.info = pil_noshadow_image.info
   #pil_test_noshadow_image.save(os.path.join(args.working_dir, "input_" + args.output_image))
 
+  st0=time.time()    
   output=sess.run(reconstruction,feed_dict={noshadow_image:test_noshadow_image})
+  print("inference done:  %.2f"%(time.time()-st0))
+
   diff_image = test_noshadow_image[0,:,:,:] - output[0,:,:,:]
   output=np.minimum(np.maximum(output, 0.0), 255.0)
   diff_image=np.minimum(np.maximum(diff_image,0.0),255.0)
@@ -105,12 +109,13 @@ try:
   pil_full_image.save(os.path.join(args.working_dir, args.output_image))
   if iw != sp or ih != sp:
     pil_diff_image = pil_diff_image.resize((iw, ih), Image.ANTIALIAS)
-    pil_diff_image.save(os.path.join(args.working_dir, "diff_fullsize_" + args.output_image))
+    #pil_diff_image.save(os.path.join(args.working_dir, "diff_fullsize_" + args.output_image))
     allshadow_image_arr = noshadow_image_arr - pil_to_nparray(pil_diff_image)
     allshadow_image_arr=np.minimum(np.maximum(allshadow_image_arr, 0.0), 255.0)
     pil_full_image_fullsize = Image.fromarray(np.uint8(allshadow_image_arr),mode='RGB')
     pil_full_image_fullsize.info = pil_noshadow_image.info
     pil_full_image_fullsize.save(os.path.join(args.working_dir, "fullsize_" + args.output_image))    
+  print("done:  %.2f"%(time.time()-st))
 except Exception as err:
   print('Quit by errors: ' , err)
   traceback.print_exc()

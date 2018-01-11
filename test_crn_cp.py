@@ -98,7 +98,8 @@ try:
 
   if not os.path.isfile(os.path.join(args.working_dir, args.label_image)) or not os.path.isfile(os.path.join(args.working_dir, args.noshadow_image)):#test average image not exist
       raise Exception("Invalid label image or average image path")
-      
+
+  st=time.time()    
   semantic=get_index_semantic_map(os.path.join(args.working_dir, args.label_image), n_classes, sp, sp)#test label
   pil_noshadow_image = Image.open(os.path.join(args.working_dir, args.noshadow_image))
   iw, ih = pil_noshadow_image.size
@@ -110,7 +111,9 @@ try:
   #pil_test_noshadow_image.info = pil_noshadow_image.info
   #pil_test_noshadow_image.save(os.path.join(args.working_dir, "input_" + args.output_image))
 
+  st0=time.time()    
   output=sess.run(reconstruction,feed_dict={label:np.concatenate((semantic,np.expand_dims(1-np.sum(semantic,axis=3),axis=3)),axis=3),noshadow_image:test_noshadow_image})
+  print("inference done:  %.2f"%(time.time()-st0))
   diff_image = test_noshadow_image[0,:,:,:] - output[0,:,:,:]
   output=np.minimum(np.maximum(output, 0.0), 255.0)
   diff_image=np.minimum(np.maximum(diff_image,0.0),255.0)
@@ -128,6 +131,7 @@ try:
     pil_full_image_fullsize = Image.fromarray(np.uint8(allshadow_image_arr),mode='RGB')
     pil_full_image_fullsize.info = pil_noshadow_image.info
     pil_full_image_fullsize.save(os.path.join(args.working_dir, "fullsize_" + args.output_image))    
+  print("done:  %.2f"%(time.time()-st))
 except Exception as err:
   print('Quit by errors: ' , err)
   traceback.print_exc()
